@@ -54,26 +54,8 @@ namespace RefactorThis.Domain
         {            
             if (IsPaymentGreaterThanInvoiceAmount(inv, payment)) return "the payment is greater than the invoice amount";
             string invoiceTypeMessage = payment.Amount == inv.Amount ? "invoice is now fully paid" : "invoice is now partially paid";
-            string responseMessage;
-            switch (inv.Type)
-            {
-                case InvoiceType.Standard:
-                    inv.AmountPaid = payment.Amount;
-                    inv.TaxAmount = payment.Amount * 0.14m;
-                    inv.Payments.Add(payment);
-                    responseMessage = invoiceTypeMessage;
-                    break;
-                case InvoiceType.Commercial:
-                    inv.AmountPaid = payment.Amount;
-                    inv.TaxAmount = payment.Amount * 0.14m;
-                    inv.Payments.Add(payment);
-                    responseMessage = invoiceTypeMessage;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-
-            return responseMessage;
+            ApplyPayment(inv, payment, false, inv.Type == InvoiceType.Standard);
+            return invoiceTypeMessage;
         }
 
         private string InstallmentPayment(Invoice inv, Payment payment)
@@ -81,26 +63,32 @@ namespace RefactorThis.Domain
             if (IsInvoiceWasFullyPaid(inv)) return "invoice was already fully paid";
             if (IsPaymentGreaterThanPartialAmountRemaining(inv, payment)) return "the payment is greater than the partial amount remaining";
             string invoiceTypeMessage = (inv.Amount - inv.AmountPaid) == payment.Amount ? "final partial payment received, invoice is now fully paid" : "another partial payment received, still not fully paid";
-            string responseMessage;
+            
+            ApplyPayment(inv, payment, true, inv.Type == InvoiceType.Standard);
+            return invoiceTypeMessage;
+        }
 
+        private void ApplyPayment(Invoice inv, Payment payment, bool isInstallment, bool applyTax)
+        {
             switch (inv.Type)
             {
                 case InvoiceType.Standard:
-                    inv.AmountPaid += payment.Amount;
+                    inv.AmountPaid = isInstallment ? inv.AmountPaid + payment.Amount : payment.Amount;
+                    if (applyTax)
+                        inv.TaxAmount = payment.Amount * 0.1m;
+
                     inv.Payments.Add(payment);
-                    responseMessage = invoiceTypeMessage;
                     break;
+
                 case InvoiceType.Commercial:
-                    inv.AmountPaid += payment.Amount;
-                    inv.TaxAmount += payment.Amount * 0.14m;
+                    inv.AmountPaid = isInstallment ? inv.AmountPaid + payment.Amount : payment.Amount;
+                    inv.TaxAmount = payment.Amount * 0.14m;
                     inv.Payments.Add(payment);
-                    responseMessage = invoiceTypeMessage;
                     break;
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-
-            return responseMessage;
         }
     }
 }
